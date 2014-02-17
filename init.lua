@@ -3,7 +3,8 @@ require 'paths'
 
 base_path = '/home/jure/datasets'
 
-function mnist()
+torch_datasets = {}
+function torch_datasets.mnist()
    local path = base_path .. '/mnist'
    local bin_path = path .. '/mnist.th'
 
@@ -37,8 +38,8 @@ function mnist()
       f_tr = torch.DiskFile(path .. '/train-images-idx3-ubyte')
       f_te = torch.DiskFile(path .. '/t10k-images-idx3-ubyte')
 
-      X_tr = torch.ByteTensor(60000, 1, 784)
-      X_te = torch.ByteTensor(10000, 1, 784)
+      X_tr = torch.ByteTensor(60000, 784)
+      X_te = torch.ByteTensor(10000, 784)
 
       f_tr:readByte(16)
       f_tr:readByte(X_tr:storage())
