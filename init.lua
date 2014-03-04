@@ -61,7 +61,7 @@ function torch_datasets.cifar(preprocess)
    preprocess = preprocess or 1
 
    local path = base_path .. '/cifar'
-   local bin_path = path .. '/cifar.t7'
+   local bin_path = path .. '/cifar_' .. preprocess .. '.t7'
 
    if not paths.filep(bin_path) then
       -- os.execute('wget -N -P ' .. path ..' ' .. 'http://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz')
@@ -69,27 +69,43 @@ function torch_datasets.cifar(preprocess)
 
       local fnames = {'data_batch_1.bin', 'data_batch_2.bin', 'data_batch_3.bin','data_batch_4.bin','data_batch_5.bin','test_batch.bin'}
 
-      local X = torch.FloatTensor(60000, 3, 32, 32)
-      local y = torch.FloatTensor(60000)
+      local X = torch.DoubleTensor(60000, 3, 32, 32)
+      local y = torch.DoubleTensor(60000)
 
-      local tmp_storage = torch.FloatStorage(10000 * (1 + 1024 * 3))
+      local tmp_storage = torch.DoubleStorage(10000 * (1 + 1024 * 3))
       for i, fname in ipairs(fnames) do
          local f = torch.ByteStorage(path .. '/cifar-10-batches-bin/' .. fname)
          tmp_storage:copy(f)
-         local tmp_tensor = torch.FloatTensor(tmp_storage, 1, torch.LongStorage{10000, 1 + 1024 * 3})
+         local tmp_tensor = torch.DoubleTensor(tmp_storage, 1, torch.LongStorage{10000, 1 + 1024 * 3})
          X:narrow(1, (i - 1) * 10000 + 1, 10000):copy(tmp_tensor:narrow(2, 2, 1024 * 3))
          y:narrow(1, (i - 1) * 10000 + 1, 10000):copy(tmp_tensor:narrow(2, 1, 1))
       end
       y:add(1)
 
       if preprocess == 1 then
-         nn = nn.SpatialContrastiveNormalization(1, image.gaussian1D(7))
+         -- Torch7 demo
+         normalization = nn.SpatialContrastiveNormalization(1, image.gaussian1D(7))
          for i = 1,X:size(1) do
-            print(i)
-            break
+            local rgb = X[i]
+            local yuv = image.rgb2yuv(rgb)
+            yuv[1] = normalization(yuv[{{1}}])
+            X[i] = yuv
          end
-      end
-   end
-end
 
-torch_datasets.cifar()
+         mean = X[{{},2,{},{}}]:mean()
+         std = X[{{},2,{},{}}]:std()
+         X[{{},2,{},{}}]:add(-mean):div(std)
+
+         mean = X[{{},3,{},{}}]:mean()
+         std = X[{{},3,{},{}}]:std()
+         X[{{},3,{},{}}]:add(-mean):div(std)
+      elseif preprocess == 2 then
+         -- Alex
+         mean = X:resize(60000, 3072):mean(1)
+         X:add(-1, mean:repeatTensor(60000, 1))
+         X:resize(60000, 3, 32, 32)
+      end
+      torch.save(bin_path, {X, y})
+   end
+   return unpack(torch.load(bin_path))
+end
