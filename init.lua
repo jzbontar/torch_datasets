@@ -101,11 +101,19 @@ function torch_datasets.cifar(preprocess)
          X[{{},3,{},{}}]:add(-mean):div(std)
       elseif preprocess == 2 then
          -- Alex
-         mean = X:resize(60000, 3072):mean(1)
+         mean = torch.DoubleTensor(3072)
+         f = torch.DiskFile(path .. '/mean')   
+         f:readDouble(mean:storage()) 
+         f:close()
+
+         X:resize(60000, 3072)
          X:add(-1, mean:repeatTensor(60000, 1))
          X:resize(60000, 3, 32, 32)
       end
+
       torch.save(bin_path, {X, y})
    end
    return unpack(torch.load(bin_path))
 end
+
+torch_datasets.cifar(2)
