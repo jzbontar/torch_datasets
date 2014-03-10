@@ -109,7 +109,24 @@ function torch_datasets.cifar(preprocess)
          X:resize(60000, 3072)
          X:add(-1, mean:repeatTensor(60000, 1))
          X:resize(60000, 3, 32, 32)
+      elseif preprocess == 3 then
+         -- Jure
+         X:resize(60000, 3072)
+         mean = X:narrow(1, 1, 50000):mean(1)
+         std = X:narrow(1, 1, 50000):std(1)
+         X:add(-1, mean:repeatTensor(60000, 1))
+         X:cdiv(torch.repeatTensor(std, 60000, 1))
+         X:resize(60000, 3, 32, 32)
+
+         f = torch.DiskFile(path .. '/mean3', 'w'):ascii()
+         f:writeDouble(mean:storage())
+         f:close()
+
+         f = torch.DiskFile(path .. '/std3', 'w'):ascii()
+         f:writeDouble(std:storage())
+         f:close()
       end
+
 
       torch.save(bin_path, {X, y})
    end
